@@ -39,7 +39,7 @@
         let accountsRegistered = 0;
         let startTime = Date.now();
 
-        const ui = () => {
+        const updateUI = () => {
             const elapsedMinutes = Math.floor((Date.now() - startTime) / 60000);
             const timeText = elapsedMinutes < 60 ? `${elapsedMinutes} minute${elapsedMinutes !== 1 ? 's' : ''}` :
                 elapsedMinutes < 1440 ? `${Math.floor(elapsedMinutes / 60)} hour${Math.floor(elapsedMinutes / 60) !== 1 ? 's' : ''}` :
@@ -84,7 +84,7 @@
             }, 1);
         });
 
-        ui();
+        updateUI();
     </script>
 </body>
 </html>
